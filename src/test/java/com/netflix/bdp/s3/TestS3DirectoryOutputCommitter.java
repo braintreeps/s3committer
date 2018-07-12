@@ -17,6 +17,7 @@
 package com.netflix.bdp.s3;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -70,6 +71,7 @@ public class TestS3DirectoryOutputCommitter extends TestUtil.JobCommitterTest<S3
     when(mockS3.exists(OUTPUT_PATH)).thenReturn(false);
 
     committer.commitJob(getJob());
+    verify(mockS3).mkdirs(OUTPUT_PATH, FsPermission.getDirDefault());
     verify(mockS3).exists(OUTPUT_PATH);
     verifyNoMoreInteractions(mockS3);
   }
@@ -113,6 +115,7 @@ public class TestS3DirectoryOutputCommitter extends TestUtil.JobCommitterTest<S3
     when(mockS3.exists(OUTPUT_PATH)).thenReturn(false);
 
     committer.commitJob(getJob());
+    verify(mockS3).mkdirs(OUTPUT_PATH, FsPermission.getDirDefault());
     verify(mockS3).exists(OUTPUT_PATH);
     verifyNoMoreInteractions(mockS3);
   }
@@ -134,6 +137,7 @@ public class TestS3DirectoryOutputCommitter extends TestUtil.JobCommitterTest<S3
     when(mockS3.exists(OUTPUT_PATH)).thenReturn(true);
 
     committer.commitJob(getJob());
+    verify(mockS3).mkdirs(OUTPUT_PATH, FsPermission.getDirDefault());
     verify(mockS3).exists(OUTPUT_PATH);
     verifyNoMoreInteractions(mockS3);
   }
@@ -157,6 +161,7 @@ public class TestS3DirectoryOutputCommitter extends TestUtil.JobCommitterTest<S3
     when(mockS3.delete(OUTPUT_PATH, true)).thenReturn(true);
 
     committer.commitJob(getJob());
+    verify(mockS3).mkdirs(OUTPUT_PATH, FsPermission.getDirDefault());
     verify(mockS3).exists(OUTPUT_PATH);
     verify(mockS3).delete(OUTPUT_PATH, true);
     verifyNoMoreInteractions(mockS3);

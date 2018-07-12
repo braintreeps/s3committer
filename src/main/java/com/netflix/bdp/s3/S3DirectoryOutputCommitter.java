@@ -88,6 +88,8 @@ public class S3DirectoryOutputCommitter extends S3MultipartOutputCommitter {
       }
     }
 
+    fs.mkdirs(outputPath);
+
     super.commitJob(context);
   }
 }

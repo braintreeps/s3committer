@@ -16,8 +16,9 @@
 
 package com.netflix.bdp.s3;
 
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
@@ -41,6 +42,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -57,6 +59,9 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
   private final Path workPath;
   private final FileOutputCommitter wrappedCommitter;
 
+  private final EmrfsMetadataStore emrfsStore;
+  private final Configuration localConf;
+
   // lazy variables
   private AmazonS3 client = null;
   private ConflictResolution mode = null;
@@ -70,8 +75,12 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
       throws IOException {
     super(outputPath, context);
     this.constructorOutputPath = outputPath;
+    // use the tmp dirs from the node config, not the job config which may have different dirs/drives
+    this.localConf = new Configuration();
 
     Configuration conf = context.getConfiguration();
+
+    this.emrfsStore = new EmrfsMetadataStore(AmazonDynamoDBClientBuilder.defaultClient());
 
     this.uploadPartSize = conf.getLong(
         S3Committer.UPLOAD_SIZE, S3Committer.DEFAULT_UPLOAD_SIZE);
@@ -82,7 +91,7 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
         conf.get(S3Committer.SPARK_APP_ID, context.getJobID().toString())));
 
     if (context instanceof TaskAttemptContext) {
-      this.workPath = taskAttemptPath((TaskAttemptContext) context, uuid);
+      this.workPath = taskAttemptPath((TaskAttemptContext) context, localConf, uuid);
     } else {
       this.workPath = null;
     }
@@ -121,7 +130,7 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
    * @return a {@link AmazonS3} client
    */
   protected Object findClient(Path path, Configuration conf) {
-    return new AmazonS3Client();
+    return AmazonS3ClientBuilder.defaultClient();
   }
 
   /**
@@ -212,7 +221,7 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
   @Override
   public Path getTaskAttemptPath(TaskAttemptContext context) {
     // a path on the local FS for files that will be uploaded
-    return taskAttemptPath(context, uuid);
+    return taskAttemptPath(context, localConf, uuid);
   }
 
   @Override
@@ -249,7 +258,7 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
     FileStatus[] pendingCommitFiles = attemptFS.listStatus(
         jobAttemptPath, HiddenPathFilter.get());
 
-    final List<S3Util.PendingUpload> pending = Lists.newArrayList();
+    final List<S3Util.PendingUpload> pending = Collections.synchronizedList(Lists.newArrayList());
 
     // try to read every pending file and add all results to pending.
     // in the case of a failure to read the file, exceptions are held until all
@@ -306,7 +315,9 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
           .run(new Task<S3Util.PendingUpload, RuntimeException>() {
             @Override
             public void run(S3Util.PendingUpload commit) {
+              Path path = new Path("s3://" + commit.getBucketName() + "/" + commit.getKey());
               S3Util.finishCommit(client, commit);
+              emrfsStore.storeFileMetadata(path);
             }
           });
 
@@ -361,13 +372,19 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
       throws IOException {
     if (suppressExceptions) {
       try {
-        wrappedCommitter.cleanupJob(context);
+        cleanupInternal(context.getConfiguration());
       } catch (Exception e) {
         LOG.error("Failed while cleaning up job", e);
       }
     } else {
-      wrappedCommitter.cleanupJob(context);
+      cleanupInternal(context.getConfiguration());      
     }
+  }
+
+  private void cleanupInternal(Configuration conf) throws IOException {
+    Path commitsPath = Paths.getCommitsDirRoot(conf, uuid);
+    FileSystem fs = commitsPath.getFileSystem(conf);
+    fs.delete(commitsPath, true);
   }
 
   @Override
@@ -413,8 +430,7 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
 
     // keep track of unfinished commits in case one fails. if something fails,
     // we will try to abort the ones that had already succeeded.
-    final List<S3Util.PendingUpload> commits = Lists.newArrayList();
-
+    final List<S3Util.PendingUpload> commits = Collections.synchronizedList(Lists.newArrayList());
 
     boolean threw = true;
     ObjectOutputStream completeUploadRequests = new ObjectOutputStream(
@@ -483,9 +499,9 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
     wrappedCommitter.abortTask(context);
   }
 
-  private static Path taskAttemptPath(TaskAttemptContext context, String uuid) {
+  private static Path taskAttemptPath(TaskAttemptContext context, Configuration conf, String uuid) {
     return getTaskAttemptPath(context, Paths.getLocalTaskAttemptTempDir(
-        context.getConfiguration(), uuid,
+        conf, uuid,
         getTaskId(context), getAttemptId(context)));
   }
 
@@ -597,4 +613,8 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
     }
     return mode;
   }
+
+  public Configuration getLocalConf() {
+    return localConf;
+  }  
 }

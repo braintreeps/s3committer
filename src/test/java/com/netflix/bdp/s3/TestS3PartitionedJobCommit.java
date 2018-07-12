@@ -22,6 +22,7 @@ import com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.junit.Assert;
 import org.junit.Test;
@@ -91,6 +92,8 @@ public class TestS3PartitionedJobCommit extends TestUtil.JobCommitterTest<S3Part
 
     // both fail and append don't check. fail is enforced at the task level.
     for (String mode : Arrays.asList(null, "fail", "append")) {
+      reset(mockS3);
+
       if (mode != null) {
         getJob().getConfiguration().set(S3Committer.CONFLICT_MODE, mode);
       }
@@ -99,6 +102,10 @@ public class TestS3PartitionedJobCommit extends TestUtil.JobCommitterTest<S3Part
 
       // no directories exist
       committer.commitJob(getJob());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"), FsPermission.getDirDefault());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=14"), FsPermission.getDirDefault());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=13"), FsPermission.getDirDefault());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=14"), FsPermission.getDirDefault());
       verifyNoMoreInteractions(mockS3);
 
       // parent and peer directories exist
@@ -108,6 +115,10 @@ public class TestS3PartitionedJobCommit extends TestUtil.JobCommitterTest<S3Part
       when(mockS3.exists(new Path(OUTPUT_PATH, "dateint=20161116/hour=10")))
           .thenReturn(true);
       committer.commitJob(getJob());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"), FsPermission.getDirDefault());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=14"), FsPermission.getDirDefault());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=13"), FsPermission.getDirDefault());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=14"), FsPermission.getDirDefault());
       verifyNoMoreInteractions(mockS3);
 
       // a leaf directory exists.
@@ -116,6 +127,10 @@ public class TestS3PartitionedJobCommit extends TestUtil.JobCommitterTest<S3Part
       when(mockS3.exists(new Path(OUTPUT_PATH, "dateint=20161115/hour=14")))
           .thenReturn(true);
       committer.commitJob(getJob());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"), FsPermission.getDirDefault());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=14"), FsPermission.getDirDefault());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=13"), FsPermission.getDirDefault());
+      verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=14"), FsPermission.getDirDefault());
       verifyNoMoreInteractions(mockS3);
     }
   }
@@ -129,6 +144,10 @@ public class TestS3PartitionedJobCommit extends TestUtil.JobCommitterTest<S3Part
     S3PartitionedOutputCommitter committer = newJobCommitter();
 
     committer.commitJob(getJob());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=14"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=13"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=14"), FsPermission.getDirDefault());
     verify(mockS3).exists(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"));
     verify(mockS3).exists(new Path(OUTPUT_PATH, "dateint=20161115/hour=14"));
     verify(mockS3).exists(new Path(OUTPUT_PATH, "dateint=20161116/hour=13"));
@@ -143,6 +162,10 @@ public class TestS3PartitionedJobCommit extends TestUtil.JobCommitterTest<S3Part
         .thenReturn(true);
 
     committer.commitJob(getJob());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=14"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=13"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=14"), FsPermission.getDirDefault());
     verify(mockS3).exists(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"));
     verify(mockS3).exists(new Path(OUTPUT_PATH, "dateint=20161115/hour=14"));
     verify(mockS3).exists(new Path(OUTPUT_PATH, "dateint=20161116/hour=13"));
@@ -162,6 +185,10 @@ public class TestS3PartitionedJobCommit extends TestUtil.JobCommitterTest<S3Part
         .thenReturn(true);
 
     committer.commitJob(getJob());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=14"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=13"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=14"), FsPermission.getDirDefault());
     verify(mockS3).exists(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"));
     verify(mockS3).delete(
         new Path(OUTPUT_PATH, "dateint=20161115/hour=13"),
@@ -189,6 +216,10 @@ public class TestS3PartitionedJobCommit extends TestUtil.JobCommitterTest<S3Part
         .thenReturn(true);
 
     committer.commitJob(getJob());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161115/hour=14"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=13"), FsPermission.getDirDefault());
+    verify(mockS3).mkdirs(new Path(OUTPUT_PATH, "dateint=20161116/hour=14"), FsPermission.getDirDefault());
     verify(mockS3).exists(new Path(OUTPUT_PATH, "dateint=20161115/hour=13"));
     verify(mockS3).exists(new Path(OUTPUT_PATH, "dateint=20161115/hour=14"));
     verify(mockS3).exists(new Path(OUTPUT_PATH, "dateint=20161116/hour=13"));

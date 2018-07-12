@@ -22,7 +22,8 @@ public class S3Committer {
   public static final String UPLOAD_UUID = "s3.multipart.committer.uuid";
   public static final String CONFLICT_MODE = "s3.multipart.committer.conflict-mode";
   public static final String NUM_THREADS = "s3.multipart.committer.num-threads";
-  public static final int DEFAULT_NUM_THREADS = 8;
+  public static final int DEFAULT_NUM_THREADS = 16;
+  public static final String DEFAULT_COMMITS_DIR = "/tmp/s3committer";
 
   // Spark configuration keys
   public static final String SPARK_WRITE_UUID = "spark.sql.sources.writeJobUUID";

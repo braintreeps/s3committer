@@ -17,9 +17,11 @@
 package com.netflix.bdp.s3.util;
 
 import com.google.common.base.Objects;
+import com.netflix.bdp.s3.S3Committer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Random;
@@ -106,30 +108,34 @@ public class Paths {
     return relative.getPath();
   }
 
-  public static Path getLocalTaskAttemptTempDir(Configuration conf,
+  public static Path getLocalTaskAttemptTempDir(Configuration localConf,
                                                 String uuid, int taskId,
                                                 int attemptId) {
-    return new Path(localTemp(conf, taskId, attemptId), uuid);
+    return new Path(localTemp(localConf, taskId, attemptId), uuid);
   }
 
   public static Path getMultipartUploadCommitsDirectory(Configuration conf,
                                                         String uuid)
       throws IOException {
-    // no need to use localTemp, this is HDFS in production
-    Path work = FileSystem.get(conf).makeQualified(
-        new Path("/tmp", uuid));
-    return new Path(work, "pending-uploads");
+    // no need to use localTemp, this is HDFS in production        
+    return new Path(getCommitsDirRoot(conf, uuid), "pending-uploads");
+  }
+
+  public static Path getCommitsDirRoot(Configuration conf, String uuid) throws IOException {
+    String user = UserGroupInformation.getCurrentUser().getShortUserName();
+    String rootDir = S3Committer.DEFAULT_COMMITS_DIR + "-" + user;
+    return FileSystem.get(conf).makeQualified(new Path(rootDir, uuid));
   }
 
   // TODO: verify this is correct, it comes from dse-storage
-  private static Path localTemp(Configuration conf, int taskId, int attemptId) {
-    String localDirs = conf.get("mapreduce.cluster.local.dir");
+  private static Path localTemp(Configuration localConf, int taskId, int attemptId) {
+    String localDirs = localConf.get("mapreduce.cluster.local.dir");
     Random rand = new Random(Objects.hashCode(taskId, attemptId));
     String[] dirs = localDirs.split(",");
     String dir = dirs[rand.nextInt(dirs.length)];
 
     try {
-      return FileSystem.getLocal(conf).makeQualified(new Path(dir));
+      return FileSystem.getLocal(localConf).makeQualified(new Path(dir));
     } catch (IOException e) {
       throw new RuntimeException("Failed to localize path: " + dir, e);
     }

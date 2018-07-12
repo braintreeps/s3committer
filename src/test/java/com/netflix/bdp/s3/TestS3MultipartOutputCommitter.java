@@ -34,6 +34,7 @@ import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -70,6 +71,7 @@ public class TestS3MultipartOutputCommitter extends TestUtil.MiniDFSTest {
   private String uuid = null;
   private TaskAttemptContext tac = null;
   private Configuration conf = null;
+  private Configuration localConf = null;
   private MockedS3Committer jobCommitter = null;
   private MockedS3Committer committer = null;
 
@@ -110,24 +112,25 @@ public class TestS3MultipartOutputCommitter extends TestUtil.MiniDFSTest {
     conf.setInt(UPLOAD_SIZE, 100);
 
     this.committer = new MockedS3Committer(S3_OUTPUT_PATH, tac);
+    this.localConf = committer.getLocalConf();
   }
 
   @Test
   public void testAttemptPathConstruction() throws Exception {
     // the temp directory is chosen based on a random seeded by the task and
     // attempt ids, so the result is deterministic if those ids are fixed.
-    conf.set("mapred.local.dir", "/tmp/mr-local-0,/tmp/mr-local-1");
+    localConf.set("mapred.local.dir", "/tmp/mr-local-0,/tmp/mr-local-1");
 
     Assert.assertEquals("Missing scheme should produce local file paths",
         "file:/tmp/mr-local-1/" + uuid + "/_temporary/0/_temporary/attempt_job_0001_r_000002_3",
         committer.getTaskAttemptPath(tac).toString());
 
-    conf.set("mapred.local.dir", "file:/tmp/mr-local-0,file:/tmp/mr-local-1");
+    localConf.set("mapred.local.dir", "file:/tmp/mr-local-0,file:/tmp/mr-local-1");
     Assert.assertEquals("Path should be the same with file scheme",
         "file:/tmp/mr-local-1/" + uuid + "/_temporary/0/_temporary/attempt_job_0001_r_000002_3",
         committer.getTaskAttemptPath(tac).toString());
 
-    conf.set("mapred.local.dir",
+    localConf.set("mapred.local.dir",
         "hdfs://nn:8020/tmp/mr-local-0,hdfs://nn:8020/tmp/mr-local-1");
     TestUtil.assertThrows("Should not allow temporary storage in HDFS",
         IllegalArgumentException.class, "Wrong FS",
@@ -141,8 +144,10 @@ public class TestS3MultipartOutputCommitter extends TestUtil.MiniDFSTest {
 
   @Test
   public void testCommitPathConstruction() throws Exception {
+    String user = UserGroupInformation.getCurrentUser().getShortUserName();
     Path expected = getDFS().makeQualified(new Path(
-        "hdfs:/tmp/" + uuid + "/pending-uploads/_temporary/0/task_job_0001_r_000002"));
+      "hdfs:" + S3Committer.DEFAULT_COMMITS_DIR + "-" + user + "/" + uuid
+      + "/pending-uploads/_temporary/0/task_job_0001_r_000002"));
     Assert.assertEquals("Path should be in HDFS",
         expected, committer.getCommittedTaskPath(tac));
   }

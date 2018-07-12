@@ -156,6 +156,10 @@ public class S3PartitionedOutputCommitter extends S3MultipartOutputCommitter {
       }
     }
 
+    for (Path partitionPath : partitions) {
+      s3.mkdirs(partitionPath);
+    }
+
     commitJobInternal(context, pending);
   }
 
