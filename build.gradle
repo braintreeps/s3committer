@@ -59,7 +59,7 @@ uploadArchives {
   repositories.mavenDeployer {
     configuration = configurations.deployerJars
     repository(url: 'packagecloud+https://packagecloud.io/braintree/data-engineering') {
-      authentication(password: System.env.PACKAGECLOUD_API_KEY)
+      authentication(password: System.env.PACKAGECLOUD_TOKEN)
     }
   }
 }
