@@ -130,7 +130,9 @@ class S3MultipartOutputCommitter extends FileOutputCommitter {
    * @return a {@link AmazonS3} client
    */
   protected Object findClient(Path path, Configuration conf) {
-    return AmazonS3ClientBuilder.defaultClient();
+    synchronized(AmazonS3ClientBuilder.class) {
+      return AmazonS3ClientBuilder.defaultClient();
+    }
   }
 
   /**

@@ -18,7 +18,7 @@ apply plugin: 'java'
 apply plugin: 'maven' // make pom files for deployment
 
 group = "com.netflix.bdp.s3"
-version = '0.5.5-bt'
+version = '0.5.5-bt.1'
 
 repositories {
   mavenCentral()
